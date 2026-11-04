@@ -1,0 +1,370 @@
+HDAUniversalBootChimeDxe 1.0.82-final-audit R37
+Copyright © 2026 DNMTechLabs
+Contact: dnmtechlabs@gmail.com
+Credits: ©DNMTechLabs / [dnmtechlabs@gmail.com](mailto:dnmtechlabs@gmail.com)
+
+FINAL CONSOLIDATED TECHNICAL / UEFI 2.11 AUDIT
+================================================
+
+Scope
+-----
+This report describes the exact accumulated R37 source tree. The project is a
+UEFI DXE HDA boot-chime driver, not a windowed application; window geometry,
+live resize, GPU rendering and application-main-thread UI requirements are not
+applicable. R37 contains all prior final-audit rounds and supersedes earlier
+resource-ownership assumptions where direct UEFI specification review found a
+conflict.
+
+
+R37 delta
+---------
+- The supplied R36 macOS log proves the source gate passed 264/264, EDK2 provenance was verified, DEBUG compilation completed through `GenFw`, and the generated EFI was then rejected only by the project validator with `invalid FileAlignment: 0x20`.
+- The validator now implements the PE sub-page alignment rule used by EDK2/XCODE5: when `SectionAlignment < 0x1000`, `FileAlignment` must exactly equal it. For normal page-aligned images the existing `FileAlignment >= 0x200` requirement remains.
+- Sub-page sections with raw bytes must use an on-disk offset equal to their RVA. This preserves the PE loader-layout invariant and prevents the compatibility fix from becoming a blanket acceptance of low alignments.
+- New regressions model the real 0x20/0x20 EDK2 image geometry and reject the same image when raw file offset and RVA differ. All previous PE bounds, overlap, entry-point, executable-image, subsystem and certificate-table checks remain active.
+- Firmware/runtime, HDA/DMA behavior, AppleALC profiles, assets and configuration semantics are unchanged.
+- Active release metadata is 1.0.82-final-audit / R37.
+- Credits remain ©DNMTechLabs / [dnmtechlabs@gmail.com](mailto:dnmtechlabs@gmail.com).
+
+
+R36 delta
+---------
+- The supplied macOS R35 build log was reproduced as a source-hygiene timing
+  issue: Finder can create `.DS_Store` after the wrapper's one-time preflight,
+  causing a later regression round to fail even though firmware source is
+  unchanged.
+- `clean_transient_source_metadata()` now removes only `.DS_Store` and AppleDouble
+  `._*` metadata, prunes the supported local `./edk2` workspace, and runs before
+  the strict initial hygiene gate plus every regression/stress round.
+- The hygiene verifier remains fail closed and now also rejects `._*`; no test,
+  warning or diagnostic was disabled to make the build pass.
+- Firmware/runtime, HDA routing, DMA ownership, assets, configuration semantics
+  and PE/COFF validation are unchanged in this focused release-pipeline fix.
+- Active release metadata is 1.0.81-final-audit / R36.
+- Credits remain ©DNMTechLabs / [dnmtechlabs@gmail.com](mailto:dnmtechlabs@gmail.com).
+
+
+R35 delta
+---------
+- Fallback route candidates now require a successful live PIN_CAP read before
+  digital/analog classification can be published. Input-amp route prefiltering
+  likewise rejects unreadable Audio Widget Capabilities instead of interpreting
+  transport failure as "no input amp".
+- The common selected-route classifier enforces AllowDigitalPins using live HDMI
+  and DisplayPort pin capabilities as well as ConfigDefault. The explicit
+  ForcePin selection exception is preserved.
+- Analog path programming now performs a checked live pin-capability and
+  ConfigDefault classification before its first codec mutation and refuses a
+  digital endpoint when digital pins are disabled. The single barrier covers
+  direct programming, AppleALC layout fanout and Realtek fanout/combo paths.
+- The Release PE32+ validator now rejects certificate data overlapping headers
+  or section raw data, section raw overlap, images not marked executable, and
+  invalid FileAlignment/SectionAlignment or misaligned image/header/section
+  geometry. Existing X64, PE32+, subsystem, entry-point, data-directory and
+  WIN_CERTIFICATE validation remains fail closed.
+- Active release metadata is 1.0.80-final-audit / R35. The artifact remains a
+  UEFI PE/COFF DXE image; macOS ad-hoc codesign is not an applicable signing
+  primitive. Secure Boot trust requires keys/certificates enrolled by the
+  destination firmware.
+- Credits remain ©DNMTechLabs / [dnmtechlabs@gmail.com](mailto:dnmtechlabs@gmail.com).
+
+
+R34 delta
+---------
+- GET_PARAMETER failures are no longer silently collapsed to zero on decision or
+  state-changing paths where zero has valid semantic meaning. Checked reads now
+  guard exact identity matching, DAC/PCM capability selection, power, route
+  selectors, pin/digital programming and amplifier capability programming.
+- Fanout selector conflict protection fails closed when widget type is unknown.
+  Intermediate-pin validation also treats an unreadable widget as unsafe rather
+  than assuming it is not a pin.
+- Transactional snapshot nodes are published only after complete capture. PinCap
+  and input-amp requirements fail closed, and warm-reset power capture rejects
+  unknown widget capabilities, closing transient-read windows that could allow a
+  later successful write without corresponding rollback state.
+- The PE32+ Release gate now validates section-table presence/ranges, mapped
+  entry point, SizeOfImage/SizeOfHeaders relationships, Data Directory capacity
+  and every aligned WIN_CERTIFICATE record before accepting a generated EFI
+  image. Certificate structure/presence is not represented as trust validation.
+- Active release metadata is 1.0.79-final-audit / R34. The artifact remains a
+  UEFI PE/COFF DXE image; macOS ad-hoc codesign does not apply. Secure Boot trust
+  requires keys/certificates enrolled by the destination firmware.
+- Final host validation passes 253/253 normally and 253/253 with Python
+  debug allocator/development mode. Eight measured same-process rounds of the
+  219 tests that do not spawn subprocesses pass 1,752/1,752 after warm-up:
+  FD 4->4, threads 1->1, GC-tracked objects +3, measured RSS 115,016..118,176
+  KiB, with RSS plateauing at 118,176 KiB through the final four rounds.
+- The final Release wrapper passes its complete 253-test source gate, then
+  stops before compiler invocation because no local EDK2 workspace is present
+  and shell DNS cannot resolve github.com to bootstrap the pinned
+  edk2-stable202608 tree. The sole BUILD-COMPILE.log records this exact
+  limitation; no .efi, partial package, Secure Boot trust result or synthetic
+  signature is claimed.
+- Credits remain ©DNMTechLabs / [dnmtechlabs@gmail.com](mailto:dnmtechlabs@gmail.com).
+
+
+R33 delta
+---------
+- Three remaining ConfigDefault-dependent route/fanout decisions now fail closed
+  when the HDA command transport fails: QuickPath non-forced pins, alcid safe
+  fanout and Realtek AppleALC combo initialization. Forced QuickPath pins avoid
+  the unused ConfigDefault transaction.
+- Full codec diagnostics now issue GET_SUBSYSTEM_ID (F20h) to Function Group
+  NIDs rather than root NID 0. Vendor/Revision identity failures are propagated
+  to the controller dump instead of being presented as zero-valued hardware.
+- The release wrapper validates every located EFI output before copy/package as
+  an in-range PE32+ X64 image with subsystem 11 (EFI Boot Service Driver), sane
+  image/header sizes and a range-valid Authenticode table when one is present.
+  An executable synthetic-image regression validates both acceptance and a
+  wrong-subsystem rejection; it caught an escaped-signature bug in the first
+  validator implementation during this round.
+- Active release metadata is 1.0.78-final-audit / R33. The project remains a
+  UEFI PE/COFF DXE image; macOS ad-hoc codesign is not a valid signing primitive
+  for this artifact. Firmware Secure Boot signing is target-key/certificate
+  policy and is not fabricated without the deployment keys.
+- Final host validation passes 238/238 normally and 238/238 with
+  `PYTHONMALLOC=debug` plus Python development mode. A clean six-round
+  same-process stress run passes 1,428/1,428 measured tests after 238 warm-up
+  tests, with FD 4->4, threads 1->1, current RSS 115,396..118,012 KiB and
+  GC-tracked objects reaching 147,334 after the first measured round and then
+  remaining flat through round six. No progressive host-harness leak is shown.
+- Hardware-in-the-loop playback, real HDA MMIO/DMA timing, and EFI execution
+  cannot be represented as tested on this Linux container because it exposes no
+  target firmware/HDA controller environment.
+- The release wrapper passes 238/238 in each of all five source-gate rounds.
+  Actual EFI compilation remains blocked before compiler invocation because no
+  local EDK2 workspace is installed and the shell cannot resolve github.com to
+  fetch the pinned edk2-stable202608 tree at commit
+  2970e5699ba6267f3384ffab20f96647578aebc8. The failed build removes partial
+  Release output and retains only the consolidated BUILD-COMPILE.log. Therefore
+  no `.efi`, runtime Secure Boot signature, or hardware execution result is
+  claimed. The PE/COFF release validator itself is exercised with synthetic
+  valid/invalid images by the host regression suite.
+
+
+R32 delta
+---------
+- Direct HDA command transport is explicitly limited to the 7-bit NID domain;
+  bit 27 indirect-address ConfigData is rejected by the generator and again by
+  runtime span validation before verbs or coefficient-index arrays are touched.
+- Connection-list parsing rejects sequential Range entries. Path traversal and
+  selector-claim tables validate NIDs before indexing the reduced 128-entry
+  state domain.
+- ConfigDefault-dependent route classification and output programming fail
+  closed on transport errors. The primary route reuses its validated digital
+  classification rather than issuing a redundant re-read; AppleALC and Realtek
+  fallback paths no longer reinterpret failed reads as zero-valued config.
+- Mandatory controller-dump MMIO reads propagate failure; widget type 6h is
+  reported as Volume Knob. Generated AppleALC data and PCM/MP3 assets are not
+  modified by R32.
+- Active release metadata is advanced to 1.0.77-final-audit / R32. Host
+  validation passes 229/229 normally and 229/229 with Python debug allocator/
+  development mode. A clean 12-round same-process stress run passes 2,748/2,748
+  measured tests after 229 warm-up tests with FD 4->4, threads 1->1 and current
+  RSS within 115,888..117,944 KiB. An extended diagnostic run keeps the Python
+  GC-tracked object count fixed at 147,269 and later drops RSS, so no progressive
+  harness leak is demonstrated.
+- The release wrapper passes 229/229 in each of five source-gate rounds. Actual
+  EFI compilation is blocked before compiler invocation because no local EDK2
+  workspace exists and this host cannot resolve github.com to fetch the pinned
+  edk2-stable202608 tree. The exact failure is retained in the sole
+  Release/Logs/BUILD-COMPILE.log; no .efi, partial package or signature is claimed.
+
+
+R31 delta
+---------
+- Source-tree hygiene is now checked by the release wrapper before Python test
+  imports, so pre-existing cache/temporary artifacts are detected without relying
+  on `-B`/`PYTHONDONTWRITEBYTECODE` to make the test suite self-consistent. The
+  supported local ./edk2 toolchain workspace is pruned from project-source scans.
+- Append-mode diagnostics now recreate a log that is already exactly 4 MiB,
+  closing the off-by-one boundary that allowed the next write to cross the stated
+  session-start cap.
+- Active release metadata is advanced to 1.0.76-final-audit / R31. HDA/DMA,
+  routing, playback, AppleALC tables and audio assets remain otherwise unchanged.
+- The toolchain target remains the official Tianocore edk2-stable202608 release
+  pinned to commit 2970e5699ba6267f3384ffab20f96647578aebc8.
+- Final host validation passes 212/212 normally and 212/212 with Python
+  debug allocator/development mode. Same-process stress passes 2,544/2,544
+  measured tests after 212 warm-up tests, with FD 4->4, threads 1->1 and
+  current RSS within 115,032..116,944 KiB across 12 measured rounds.
+- The release wrapper passes 212/212 in each of five source-gate rounds. Actual
+  EFI compilation remains blocked before compiler invocation because no local
+  EDK2 workspace exists and this host cannot resolve github.com. The official
+  edk2-stable202608 tag still resolves to the pinned commit
+  2970e5699ba6267f3384ffab20f96647578aebc8. The exact build failure is kept
+  in the sole Release/Logs/BUILD-COMPILE.log; no .efi/ZIP/signature is fabricated.
+
+
+R30 delta
+---------
+- The complete R29 runtime was re-audited; no additional evidence-backed HDA
+  runtime change was justified, so verified codec/DMA/playback behavior is preserved.
+- Release packaging now uses the same PATH-resolved zip/unzip tools that passed
+  preflight instead of forcing unrelated /usr/bin paths.
+- Active release metadata is advanced to 1.0.75-final-audit / R30 and the
+  regression suite locks both the tooling correction and version synchronization.
+- Final host validation passes 209/209 normally and 209/209 with Python
+  debug allocator/development mode. Extended same-process stress passes 2,508/2,508
+  measured tests after 209 warm-up tests: FD 4->4 and threads 1->1. After
+  three settling rounds, current RSS remains within 116,276..117,140 KiB
+  and the high-water mark within 116,092..116,860 KiB across nine further rounds.
+- The release wrapper passes 209/209 in each of all five source-gate rounds.
+  Actual EFI compilation is externally blocked before compiler invocation because
+  no local EDK2 workspace exists and this host cannot resolve github.com to fetch
+  the pinned edk2-stable202608 workspace. The exact failure is retained in the
+  sole Release/Logs/BUILD-COMPILE.log; no .efi or partial release ZIP is claimed.
+- This UEFI PE/COFF DXE source has no macOS Mach-O bundle/framework/helper graph;
+  macOS ad-hoc codesign is therefore not an applicable signing primitive.
+
+
+R29 delta
+---------
+- The prepared Stream Descriptor is fully revalidated again at the final
+  pre-RUN boundary, after firmware-facing codec and PCI-attribute work.
+- A local descriptor restore/read-back failure after RUN is confirmed clear
+  no longer triggers controller-wide CRST; the exact EFI cleanup status is
+  retained diagnostically while the now-idle DMA buffers can be released.
+- Successful playback with later rollback degradation is never converted into
+  a second chime attempt. FastBoot surfaces the same cleanup degradation before
+  releasing its asynchronous context.
+- Safety-critical controller reset / PCI BUS_MASTER containment remains in the
+  distinct path where RUN cannot be proven stopped.
+- Final host validation: 207/207 normal, 207/207 with Python debug allocator /
+  development mode, and 828/828 same-process stress tests after 207 warm-up
+  tests (FD 4->4, threads 1->1, RSS 114,928..115,788 KiB).
+- The build wrapper passes 207/207 in each of five gates. Real EFI compilation
+  remains blocked only by the unavailable local EDK2 workspace plus shell DNS
+  failure for github.com; the exact failure is preserved in the single build
+  log and no EFI/signature result is fabricated.
+
+Preserved behavior
+------------------
+- Existing HDA discovery/routing, generated AppleALC data, PCM assets, fixed 30%
+  volume policy, configuration keys and normal playback behavior are preserved.
+- Release diagnostics remain disabled by default; detailed diagnostics stay
+  explicitly opt-in.
+- No unnecessary architectural conversion to the UEFI Driver Model was made.
+
+UEFI 2.11 / Intel HDA conformance state accumulated through R37
+----------------------------------------------------
+1. Event/TPL and boot handoff
+   - Notification events use TPL_CALLBACK, never TPL_APPLICATION.
+   - Terminal HDA DMA stop/containment is registered through CreateEventEx in
+     EFI_EVENT_GROUP_BEFORE_EXIT_BOOT_SERVICES. UEFI defines this group as the
+     last opportunity to use firmware interfaces in the boot environment.
+   - The handoff callback is synchronous/bounded and does not depend on delayed
+     timer processing. It performs no memory allocation/free, Unmap/FreeBuffer/
+     FreePages/FreePool, file/NVRAM I/O, CloseEvent, event registration or key
+     notification unregister work.
+   - Outputs of failed CreateEvent/CreateEventEx calls are never consumed.
+   - The interactive codec-dump key worker is a timer notification. During
+     DXE entry the key callback records the request without arming the timer,
+     allowing the existing controller-safe synchronous service point to consume
+     it. Outside entry, TimerRelative is used with an explicit key-callback-active
+     nesting-depth guard; a prematurely dispatched TPL_CALLBACK worker re-arms
+     by 1 ms until the outermost key callback has unwound.
+   - On successful interactive completion the timer event is closed inside its
+     own notification function, which UEFI explicitly permits; failure paths
+     retain the event to preserve retry behavior.
+
+2. SingleShot concurrency guard
+   - The volatile Boot Services variable and private protocol marker remain two
+     independent per-boot guards.
+   - Playback proceeds only if at least one guard is actually established. If
+     both mechanisms fail, R16 fails closed and skips HDA/DMA programming.
+   - Existing duplicate-load detection still skips a second image immediately.
+
+3. Acquisition/output ownership
+   - File Open/OpenVolume, RegisterKeyNotify, protocol/handle discovery,
+     AllocatePages/AllocateBuffer and PCI Map results are published only after
+     exact EFI_SUCCESS. Failed-call OUT values documented as undefined are not
+     dereferenced, closed, unregistered, unmapped or freed. A broken
+     RegisterKeyNotify implementation that returns success with a NULL handle
+     is treated as unknown callback ownership and permanently side-effect
+     contained for the remainder of the boot.
+   - PCI attributes/location, MMIO reads, keyboard data, GetTime and final
+     boot-args reads are consumed only after clean success.
+
+4. Terminal resource semantics
+   - EFI_FILE_PROTOCOL.Close/Delete and CloseEvent are terminal.
+   - PCI I/O Unmap is issued once for every successful Map and its opaque token
+     is never reused after Unmap.
+   - FreeBuffer/FreePages bookkeeping distinguishes invalid/not-owned ranges
+     from ownership that is genuinely still retained.
+
+5. PCI DMA correctness
+   - Playback PCM and BDL are normal AllocatePages memory populated before Map
+     and read by the HDA bus master; they use EfiPciIoOperationBusMasterRead.
+   - CORB/RIRB are true common buffers and use PciIo->AllocateBuffer followed
+     by EfiPciIoOperationBusMasterCommonBuffer.
+   - Successful Map ownership is represented by explicit mapped flags rather
+     than assumptions about the opaque Mapping token value.
+   - Mapping lengths, address wrap, alignment and GCAP.64OK/32-bit limits are
+     validated before DMA is armed.
+
+6. Filesystem/log/tooling
+   - Existing-directory File.Open calls pass Attributes=0; EFI_FILE_DIRECTORY
+     is supplied only on the EFI_FILE_MODE_CREATE retry as required by UEFI.
+   - Config/log I/O rejects non-success warnings and validates returned sizes.
+   - Release contains one consolidated Release/Logs/BUILD-COMPILE.log and no
+     rotated duplicate auxiliary artifacts.
+   - The build script stages the package outside the user's EDK2 workspace via
+     PACKAGES_PATH, restores temporary BaseTools compatibility edits byte-for-
+     byte and removes partial build products on a failed gate/build.
+   - The codec-dump helper preserves first-run Release/Debug backups, prepares
+     the debug profile before publishing the Release `ReadDebugConfig=1` opt-in,
+     normalizes duplicate keys, and does not invent a Release profile when one
+     is absent.
+
+Accumulated round history
+-------------------------
+R28 / 1.0.73: transactional Immediate/CORB/RIRB and Stream Descriptor ownership, severe ring-error handling, 32-bit-only upper-base conformance, bidirectional output-direction correction, read-back verification and descriptor-state restoration aligned with Intel HDA 1.0a.
+R27 / 1.0.72: clean controller-reset precondition, consistent post-CRST codec settle timing, Immediate/CORB transport exclusion and owned Immediate Command recovery aligned with Intel HDA 1.0a.
+R26 / 1.0.71: pinned EDK2 builds now fail closed when a non-Git workspace prevents verification of EDK2_EXPECTED_COMMIT; explicitly unpinned custom refs retain the prior compatibility path.
+R25 / 1.0.70: undocumented RegisterKeyNotify failures are contained as unknown ownership; default edk2-stable202608 build provenance is pinned to official commit 2970e5699ba6267f3384ffab20f96647578aebc8.
+R24 / 1.0.69: key-notify ownership mutation barrier extended through unregister/event teardown; primary build .command revalidated transactionally.
+R23 / 1.0.68: unknown successful key-registration ownership containment; untracked callback fail-safe; transactional codec-dump helper Release activation.
+R22 / 1.0.67: nesting-safe key-notify exclusion depth; callback-depth overflow fail-safe.
+R21 / 1.0.66: CORB/RIRB post-BME cleanup closure; DMA containment error fidelity.
+R20 / 1.0.65: TPL_CALLBACK/entry reentrancy exclusion; D-key callback-unwind barrier.
+R19 / 1.0.64: retained fallback BUS_MASTER ownership reconciliation; all-stream RUN gate before any BME enable.
+R18 / 1.0.63: bit-scoped PCI attribute rollback; CORB/RIRB fallback-owned BUS_MASTER transition after idle-ring validation.
+R17 / 1.0.62: File.Open attribute contract and timer-based deferred key worker.
+R16 / 1.0.61: BEFORE_EXIT_BOOT_SERVICES handoff and fail-closed SingleShot.
+R15 / 1.0.60: UEFI 2.11 TPL, DMA-operation, opaque Map ownership and minimal
+               terminal handoff corrections.
+R14 / 1.0.59: direct-spec correction of undefined failed outputs and terminal
+               File/Event/Unmap lifecycle semantics.
+R13 / 1.0.58: per-contract lifecycle re-audit separating terminal and retryable
+               ownership.
+R12 / 1.0.57: transactional EDK2 staging, logging/resource cleanup and repeated
+               host stress/fuzz validation.
+R11 / 1.0.56: exact-status/fallback/async hardening; conflicting assumptions are
+               superseded by R14-R16.
+R10 and earlier: retained in README.md and CHANGELOG.md as historical records.
+
+Validation results / boundary
+-----------------------------
+- Final accumulated R37 regression suite: 267/267 PASS in normal mode.
+- Python regression run under `-X dev` + `PYTHONMALLOC=debug`: 267/267 PASS.
+- The supplied real macOS R36 build passed its complete 264-test source gate,
+  verified the pinned EDK2 commit, compiled DEBUG successfully through GenFw,
+  and failed only in the project PE validator on `FileAlignment=0x20`. R37
+  reproduces and fixes that validator false negative with positive and negative
+  sub-page-alignment regressions.
+- The earlier R36 Finder-metadata reproduction remains covered by its retained
+  regression tests; `.DS_Store` and AppleDouble cleanup stays strict.
+- Shell `bash -n`: PASS for Build-HDAUniversalBootChimeDxe.command,
+  Setup-EDK2.command and Enable-HDAUCodecDump-NextBoot.command.
+- Python AST parsing: PASS for every Python source file in the project tree.
+- Source-tree hygiene: PASS; no `__pycache__`, `*.pyc`, `.DS_Store`, `._*` or
+  `*.tmp.*` artifacts are retained in the source package.
+- Firmware/runtime code is unchanged from R35 in this focused correction; the
+  supplied failure is confined to source/release hygiene timing on macOS.
+- Release tooling remains pinned to official Tianocore `edk2-stable202608`
+  with expected commit `2970e5699ba6267f3384ffab20f96647578aebc8`.
+- This environment has no local EDK2 workspace; final real EFI compilation and
+  firmware signing therefore remain an external validation boundary. No `.efi`
+  or signature is fabricated.
+

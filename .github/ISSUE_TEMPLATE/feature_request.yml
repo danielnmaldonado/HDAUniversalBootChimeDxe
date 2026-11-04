@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest a focused improvement to the UEFI boot chime driver
+title: '[Feature] '
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Proposed improvement
+      description: 'Describe the scenario and expected result.'
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Compatibility and alternatives
+      description: 'Which firmware/codec use cases benefit, and what alternatives have you considered?'
+    validations:
+      required: false

@@ -1,0 +1,45 @@
+# HDAUniversalBootChimeDxe
+# Copyright © 2026 DNMTechLabs
+# Contact: dnmtechlabs@gmail.com
+# Boot chime DXE driver for Clover/OpenCore.
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = HDAUniversalBootChimeDxe
+  FILE_GUID                      = 4A29DE8C-1E5D-4F4B-A567-5A1A3D32D7A1
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0.87
+  ENTRY_POINT                    = HdaUniversalBootChimeDxeEntry
+
+[Sources]
+  HdaUefi.h
+  BootChimePcm.h
+  BootChimePcm44.h
+  HdaAppleAlcLayouts.h
+  HDAUniversalBootChimeDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  BaseLib
+  DebugLib
+  PrintLib
+  UefiRuntimeServicesTableLib
+
+[Guids]
+  gEfiEventBeforeExitBootServicesGuid
+
+[Protocols]
+  gEfiPciIoProtocolGuid
+  gEfiLoadedImageProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiSimpleTextInputExProtocolGuid
+
+[Depex]
+  gEfiPciIoProtocolGuid

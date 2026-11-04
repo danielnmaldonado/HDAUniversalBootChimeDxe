@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a reproducible boot chime, build, or compatibility issue
+title: '[Bug] '
+body:
+  - type: markdown
+    attributes:
+      value: 'Please remove serial numbers, private keys and other sensitive data before sharing logs.'
+  - type: input
+    id: version
+    attributes:
+      label: Driver version
+      placeholder: '1.0.82 / R43'
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Firmware and audio hardware
+      description: 'UEFI firmware, Clover/OpenCore version, controller/codec IDs and output type.'
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: 'Include which INI profile was loaded and what happened before the OS booted.'
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (redacted)
+      description: 'Relevant build logs or codec dumps; no machine identifiers or credentials.'
+      render: text
+    validations:
+      required: false

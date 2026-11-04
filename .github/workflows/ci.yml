@@ -1,0 +1,150 @@
+name: UEFI Driver CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hdau-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-tests:
+    name: Source and regression tests (Ubuntu)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Validate shell and Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n Build-HDAUniversalBootChimeDxe.command Setup-EDK2.command Enable-HDAUCodecDump-NextBoot.command Tools/Sign-UEFI-SecureBoot.command
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          for filename in sorted(Path('Tests').glob('test_*.py')) + sorted(Path('Tools').glob('*.py')):
+              ast.parse(filename.read_text(encoding='utf-8'), filename=str(filename))
+          PY
+
+      - name: Run host regression suite
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python -B -m unittest discover -s Tests -v
+
+  firmware-build:
+    name: DEBUG and RELEASE EFI (macOS Intel)
+    needs: source-tests
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      AUTO_FETCH_EDK2: '1'
+      SOURCE_TEST_ROUNDS: '1'
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Install required EDK II assembler
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v nasm >/dev/null 2>&1; then
+            command -v brew >/dev/null 2>&1
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install nasm
+          fi
+          nasm -v
+
+      - name: Install required EDK II Mach-O converter
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! test -x /usr/local/bin/mtoc; then
+            command -v brew >/dev/null 2>&1
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install ocmtoc
+          fi
+          test -x /usr/local/bin/mtoc
+
+      - name: Check Intel toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "x86_64"
+          xcode-select -p
+          xcodebuild -version
+          python3 --version
+
+      - name: Build DEBUG and RELEASE with pinned EDK2
+        shell: bash
+        env:
+          EDK2_DEFAULT_DIR: ${{ runner.temp }}/edk2
+        run: |
+          set -euo pipefail
+          bash ./Build-HDAUniversalBootChimeDxe.command
+
+      - name: Verify build artifacts and create checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s Release/Debug/HDAUniversalBootChimeDxe.efi
+          test -s Release/Release/HDAUniversalBootChimeDxe.efi
+          test -s Release/Logs/BUILD-COMPILE.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          archives = list(Path('Release').glob('HDAUniversalBootChimeDxe-*-DEBUG-RELEASE.zip'))
+          if len(archives) != 1:
+              raise SystemExit(f'Expected one release ZIP; found {len(archives)}')
+          with zipfile.ZipFile(archives[0]) as archive:
+              bad_member = archive.testzip()
+              if bad_member:
+                  raise SystemExit(f'Corrupt member: {bad_member}')
+          print(f'Verified {archives[0]}')
+          PY
+          shasum -a 256 Release/Debug/HDAUniversalBootChimeDxe.efi \
+            Release/Release/HDAUniversalBootChimeDxe.efi \
+            Release/HDAUniversalBootChimeDxe-*-DEBUG-RELEASE.zip > Release/SHA256SUMS.txt
+
+      - name: Upload private build package
+        if: success() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: HDAUniversalBootChimeDxe-${{ github.sha }}
+          path: Release/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: HDAUniversalBootChimeDxe-failed-build-${{ github.run_id }}
+          path: Release/Logs/BUILD-COMPILE.log
+          if-no-files-found: warn
+          retention-days: 14

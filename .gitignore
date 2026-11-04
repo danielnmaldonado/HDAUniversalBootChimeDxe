@@ -1,0 +1,32 @@
+# Native macOS metadata and editor files
+.DS_Store
+._*
+*.swp
+*.swo
+*~
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# EDK2 workspaces and generated objects
+/edk2/
+/Build/
+/Conf/
+*.efi
+*.o
+*.obj
+*.pdb
+
+# Generated release artifacts (existing tracked history is retained)
+/Release/Debug/
+/Release/Release/
+/Release/EFI-Test-Pack/
+/Release/*.zip
+/Release/SHA256SUMS.txt
+/Release/Logs/*.log
+
+# Transient build files
+*.tmp.*
